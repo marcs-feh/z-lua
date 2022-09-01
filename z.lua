@@ -60,9 +60,26 @@ local COMP_ALGORITHMS = {
 		print(cmd)
 		os.execute(cmd)
 	end,
-	['zstd'] = 'zst',
-	['gzip'] = 'gz',
-	['bzip'] = 'bz'
+	['gzip'] = function(out, files)
+		local cmd = TAR_CMD .. " czf '".. out ..".tar.gz' " .. expandKeys(files)
+		print(cmd)
+		os.execute(cmd)
+	end,
+	['bzip'] = function(out, files)
+		local cmd = TAR_CMD .. " cjf '".. out ..".tar.bz' " .. expandKeys(files)
+		print(cmd)
+		os.execute(cmd)
+	end,
+	['zstd'] = function(out, files)
+		local cmd = TAR_CMD .. ' cf - '.. expandKeys(files) .. ' | zstd -o ' .. "'".. out ..".tar.zst'"
+		print(cmd)
+		os.execute(cmd)
+	end,
+	['lz4'] = function(out, files)
+		local cmd = TAR_CMD .. ' cf - '.. expandKeys(files) .. ' | lz4 - ' .. "'".. out ..".tar.lz4'"
+		print(cmd)
+		os.execute(cmd)
+	end,
 }
 
 ---Global settings
