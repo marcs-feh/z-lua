@@ -3,10 +3,10 @@
 ---Metatable for archives
 local ar_mt = {
 	__tostring = function (self)
-		local s = '['.. self.name .. ' : ' .. self.comp_algo ..']\n'
+		local s = '[\27[0;34m'.. self.name .. '\27[0m | \27[0;33m' .. self.comp_algo ..'\27[0m]\n'
 		local old_s = s
 			for f, _ in pairs(self.entries) do
-				s = s .. '\t\'' .. f .. '\'\n'
+				s = s .. "  \27[0;36m*\27[0m '" .. f .. "'\n"
 			end
 		if s == old_s then
 			s = s .. '\t(empty)\n'
@@ -25,6 +25,7 @@ local function Archive(t)
 		entries   = {},
 		name      = t.name or 'untitled-archive',
 		addEntry  = function (self, file)
+			file = file:gsub('~', os.getenv('HOME'), 1) -- expand ~ to user's home dir
 			self.entries[file] = true
 		end,
 		delEntry  = function (self, file)
@@ -38,7 +39,6 @@ local function Archive(t)
 	end
 
 	setmetatable(ar, ar_mt)
-	for k,v in pairs(ar.entries) do print('> ',k,v) end
 	return ar
 end
 
@@ -97,8 +97,6 @@ local HELP = ('usage: z [-l MOD] [-c ALGO] [-o NAME] [-fh] TARGETS\n'
             ..'\t-h       Display this help message\n'
             ..'\t--       Stop parsing options after -\n')
 
-
-
 ---Global settings
 local settings = {
 	algo  = 'gzip',
@@ -156,6 +154,7 @@ flags = {
 		if not mod then
 			error('No module provided')
 		end
+		mod = mod:gsub('%.lua$', '') -- remove .lua extension for convenience
 		local s = require(mod)
 		if not s or type(Archives) ~= 'table' then
 			error('No archive schema found in Lua module: ' .. mod)
@@ -194,17 +193,15 @@ while i <= #arg do
 end
 
 if settings.use_module then
-	print('mod mode')
 	for _, ar in ipairs(archives) do
 		print(ar)
-		--COMP_ALGORITHMS[ar.comp_algo](ar.name, ar.entries)
+		COMP_ALGORITHMS[ar.comp_algo](ar.name, ar.entries)
 	end
 elseif #targets > 0 then
 	local out = Archive{name = settings.override_name or targets[1], comp_algo = settings.algo}
 	for _, v in ipairs(targets) do
 		out:addEntry(v)
 	end
-	--print(out)
 	COMP_ALGORITHMS[out.comp_algo](out.name, out.entries)
 else
 	--print help and exit
