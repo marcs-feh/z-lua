@@ -22,7 +22,7 @@ local ar_mt = {
 local function Archive(t)
 	local ar = {
 		comp_algo = t.comp_algo or 'gzip',
-		entries   = t.entries or {},
+		entries   = {},
 		name      = t.name or 'untitled-archive',
 		addEntry  = function (self, file)
 			self.entries[file] = true
@@ -34,10 +34,11 @@ local function Archive(t)
 
 	t.entries = t.entries or {}
 	for _, v in ipairs(t.entries) do
-		ar.entries[v] = true
+		ar:addEntry(v)
 	end
 
 	setmetatable(ar, ar_mt)
+	for k,v in pairs(ar.entries) do print('> ',k,v) end
 	return ar
 end
 
@@ -45,7 +46,9 @@ end
 local function expandKeys(tbl)
 	local s = ''
 	for k, _ in pairs(tbl) do
-		s = s .. "'" .. tostring(k) .. "' "
+		if type(k) == 'string' then
+			s = s .. "'" .. tostring(k) .. "' "
+		end
 	end
 	return s
 end
@@ -82,12 +85,27 @@ local COMP_ALGORITHMS = {
 	end,
 }
 
+--- Help message
+local HELP = ('usage: z [-l MOD] [-c ALGO] [-o NAME] [-fh] TARGETS\n'
+            ..'\t-f       Override existing archives\n'
+            ..'\t-c ALGO  Use ALGO as compression algorithm\n'
+            ..'\t-b       Bundle all targets into a single archive\n'
+            ..'\t-o NAME  Use NAME as archive output, assumes -b\n'
+            ..'\t-l MOD   Load lua module MOD and use its Archives field to run the\n'
+            ..'\t         program, this will cause the program to ignore any targets\n'
+            ..'\t         provided through the command line, supresses: -b,-o,-c\n'
+            ..'\t-h       Display this help message\n'
+            ..'\t--       Stop parsing options after -\n')
+
+
+
 ---Global settings
 local settings = {
 	algo  = 'gzip',
 	bundle = false,
 	override_name = nil, -- Set this to a string and it becomes the forced name
 	force = false,
+	use_module = false
 }
 
 ---Archive list
@@ -129,17 +147,7 @@ flags = {
 	end,
 
 	['-h'] = function()
-		print('usage: z [-l MOD] [-c ALGO] [-o NAME] [-fh] TARGETS\n'
-			  ..'\t-f       Override existing archives\n'
-			  ..'\t-c ALGO  Use ALGO as compression algorithm\n'
-			  ..'\t-b       Bundle all targets into a single archive\n'
-			  ..'\t-o NAME  Use NAME as archive output, assumes -b\n'
-				..'\t-l MOD   Load lua module MOD and use its Archives field to run the\n'
-				..'\t         program, this will cause the program to ignore any targets\n'
-				..'\t         provided through the command line, supresses: -b,-o,-c\n'
-			  ..'\t-h       Display this help message\n'
-			  ..'\t--       Stop parsing options after -\n'
-		)
+		print(HELP)
 		os.exit(0)
 		return 0
 	end,
@@ -154,10 +162,15 @@ flags = {
 		end
 
 		for _, a in ipairs(Archives) do
-			archives[#archives+1] = Archive(a)
+			--for k,v in pairs(a.entries) do print('[a] ',k,v) end
+			archives[#archives+1] = Archive{name = a.name, comp_algo = a.comp_algo}
+			for _, e in ipairs(a.entries) do
+				archives[#archives]:addEntry(e)
+			end
 		end
 
-		targets = {}
+		settings.use_module = true
+
 		return 1
 	end,
 
@@ -180,12 +193,22 @@ while i <= #arg do
 	i = i + 1
 end
 
-if #targets > 0 then
-	local out = Archive{name = settings.override_name, comp_algo = settings.algo}
-	for _, v in pairs(targets) do
+if settings.use_module then
+	print('mod mode')
+	for _, ar in ipairs(archives) do
+		print(ar)
+		--COMP_ALGORITHMS[ar.comp_algo](ar.name, ar.entries)
+	end
+elseif #targets > 0 then
+	local out = Archive{name = settings.override_name or targets[1], comp_algo = settings.algo}
+	for _, v in ipairs(targets) do
 		out:addEntry(v)
 	end
 	--print(out)
 	COMP_ALGORITHMS[out.comp_algo](out.name, out.entries)
+else
+	--print help and exit
+	print(HELP)
+	os.exit(1)
 end
 
