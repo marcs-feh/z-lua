@@ -17,6 +17,16 @@ local function log(msg)
 	end
 end
 
+---Check if file is readble(exists)
+local function fileExists(path)
+	local f = io.open(path, 'r')
+	if f then
+		f:close()
+		return true
+	end
+	return false
+end
+
 --- Utility function to expand table to string
 local function expandKeys(tbl)
 	local s = ''
@@ -73,32 +83,51 @@ end
 ---Command to use for tape archiver
 local TAR_CMD = 'tar'
 
+---Ask OS to execute cmd, checks if fname exists
+local function compress(fname, cmd)
+	if fileExists(fname) then
+		if settings.force then
+			os.remove(fname)
+			os.execute(cmd)
+		else
+			print(fname .. " already exists, delete it or use -f to overwrite it.")
+		end
+	else
+		os.execute(cmd)
+	end
+end
+
 ---Compression algos and their functions.
 local COMP_ALGORITHMS = {
 	['xz'] = function(out, files)
-		local cmd = TAR_CMD .. " cJf '".. out ..".tar.xz' " .. expandKeys(files)
+		local fname = out ..".tar.xz"
+		local cmd = TAR_CMD .. " cJf '" .. fname .. "' " .. expandKeys(files)
+		compress(fname, cmd)
 		log('Compressing with: ' .. cmd)
-		os.execute(cmd)
 	end,
 	['gzip'] = function(out, files)
-		local cmd = TAR_CMD .. " czf '".. out ..".tar.gz' " .. expandKeys(files)
+		local fname = out ..".tar.gz"
+		local cmd = TAR_CMD .. " czf '" .. fname .. "' " .. expandKeys(files)
+		compress(fname, cmd)
 		log('Compressing with: ' .. cmd)
-		os.execute(cmd)
 	end,
 	['bzip'] = function(out, files)
-		local cmd = TAR_CMD .. " cjf '".. out ..".tar.bz' " .. expandKeys(files)
+		local fname = out ..".tar.bz"
+		local cmd = TAR_CMD .. " cjf '" .. fname .. "' " .. expandKeys(files)
+		compress(fname, cmd)
 		log('Compressing with: ' .. cmd)
-		os.execute(cmd)
 	end,
 	['zstd'] = function(out, files)
-		local cmd = TAR_CMD .. ' cf - '.. expandKeys(files) .. ' | zstd -o ' .. "'".. out ..".tar.zst'"
+		local fname = out ..".tar.zst"
+		local cmd = TAR_CMD .. ' cf - '.. expandKeys(files) .. ' | zstd -o ' .. "'".. fname .."'"
+		compress(fname, cmd)
 		log('Compressing with: ' .. cmd)
-		os.execute(cmd)
 	end,
 	['lz4'] = function(out, files)
-		local cmd = TAR_CMD .. ' cf - '.. expandKeys(files) .. ' | lz4 - ' .. "'".. out ..".tar.lz4'"
+		local fname = out ..".tar.lz4"
+		local cmd = TAR_CMD .. ' cf - '.. expandKeys(files) .. ' | lz4 - ' .. "'".. fname .."'"
+		compress(fname, cmd)
 		log('Compressing with: ' .. cmd)
-		os.execute(cmd)
 	end,
 }
 
