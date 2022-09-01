@@ -41,10 +41,25 @@ local function Archive(t)
 	return ar
 end
 
+--- Utility function to expand table to string
+local function expandKeys(tbl)
+	local s = ''
+	for k, _ in pairs(tbl) do
+		s = s .. "'" .. tostring(k) .. "' "
+	end
+	return s
+end
 
----Compression algos and their extensions.
+---Command to use for tape archiver
+local TAR_CMD = 'tar'
+
+---Compression algos and their functions.
 local COMP_ALGORITHMS = {
-	['xz'] = 'xz',
+	['xz'] = function(out, files)
+		local cmd = TAR_CMD .. " cJf '".. out ..".tar.xz' " .. expandKeys(files)
+		print(cmd)
+		os.execute(cmd)
+	end,
 	['zstd'] = 'zst',
 	['gzip'] = 'gz',
 	['bzip'] = 'bz'
@@ -61,21 +76,30 @@ local settings = {
 ---Archive list
 local archives = {}
 
+---Non-flag CLI arguments
+local targets = {}
+
 ---Flags and their actions
+--Each action returns how many CLI arguments they consumed
 local flags = {}
 flags = {
-	['-c'] = function(arg)
-		if not COMP_ALGORITHMS[arg] then
-			error('Invalid compression algorithm: ' .. tostring(arg))
+	['-c'] = function(alg)
+		if not COMP_ALGORITHMS[alg] then
+			error('Invalid compression algorithm: ' .. tostring(alg))
 		end
+
+		settings.algo = alg
+		return 1
 	end,
 
 	['-f'] = function()
 		settings.force = true
+		return 0
 	end,
 
 	['-b'] = function()
 		settings.bundle = true
+		return 0
 	end,
 
 	['-o'] = function(name)
@@ -84,6 +108,7 @@ flags = {
 		end
 		settings.bundle = true
 		settings.override_name = tostring(name)
+		return 1
 	end,
 
 	['-h'] = function()
@@ -99,6 +124,7 @@ flags = {
 			  ..'\t--       Stop parsing options after -\n'
 		)
 		os.exit(0)
+		return 0
 	end,
 
 	['-l'] = function(mod)
@@ -106,25 +132,43 @@ flags = {
 			error('No module provided')
 		end
 		local s = require(mod)
-		if not s.Archives then
+		if not s or type(Archives) ~= 'table' then
 			error('No archive schema found in Lua module: ' .. mod)
 		end
+
+		for _, a in ipairs(Archives) do
+			archives[#archives+1] = Archive(a)
+		end
+
+		targets = {}
+		return 1
 	end,
 
 	['--'] = function()
 		flags = {}
+		return 0
 	end
 }
 
 --- Main
-
-local targets = {}
-for i, a in ipairs(arg) do
+local i = 1
+local a = nil
+while i <= #arg do
+	a = arg[i]
 	if flags[a] then
-		flags[a](arg[i+1])
+		i = i + flags[a](arg[i+1])
 	else
 		targets[#targets+1] = a
-		print('Target :', a)
 	end
+	i = i + 1
+end
+
+if #targets > 0 then
+	local out = Archive{name = settings.override_name, comp_algo = settings.algo}
+	for _, v in pairs(targets) do
+		out:addEntry(v)
+	end
+	--print(out)
+	COMP_ALGORITHMS[out.comp_algo](out.name, out.entries)
 end
 
