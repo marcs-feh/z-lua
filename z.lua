@@ -2,7 +2,7 @@
 
 ---Global settings
 local settings = {
-	algo  = 'gzip',
+	algo  = 'zstd',
 	bundle = false,
 	override_name = nil, -- Set this to a string and it becomes the forced name
 	force = false,
@@ -59,7 +59,7 @@ local ar_mt = {
 ---@return table
 local function Archive(t)
 	local ar = {
-		comp_algo = t.comp_algo or 'gzip',
+		comp_algo = t.comp_algo or 'zstd',
 		entries   = {},
 		name      = t.name or 'untitled-archive',
 		addEntry  = function (self, file)
@@ -119,7 +119,7 @@ local COMP_ALGORITHMS = {
 	end,
 	['zstd'] = function(out, files)
 		local fname = out ..".tar.zst"
-		local cmd = TAR_CMD .. ' cf - '.. expandKeys(files) .. ' | zstd -o ' .. "'".. fname .."'"
+		local cmd = TAR_CMD .. ' cf - '.. expandKeys(files) .. ' | zstd -T0 -19 -o ' .. "'".. fname .."'"
 		compress(fname, cmd)
 		log('Compressing with: ' .. cmd)
 	end,

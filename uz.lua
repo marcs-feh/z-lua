@@ -23,9 +23,32 @@ local COMP_ALGORITHMS = {
 	end,
 }
 
+---Help message
+local HELP = ('usage: uz [-h] ARCHIVES\n'
+            ..'\t-h  Display this help message\n'
+            ..'\t--  Stop parsing options after -\n')
+
+---Flags and their actions
+local flags = {}
+flags = {
+	['-h'] = function()
+		print(HELP)
+		os.exit(0)
+	end,
+	['--'] = function()
+		flags = {}
+	end
+}
+
 ---Get compression algorithm from file extension
 local function getCompAlgo(file)
-	local ext = file:reverse():match('^%w+%.'):reverse()
+	local ext = file:reverse():match('^%w+%.')
+	if not ext then
+		print('Unrecognized file format: ' .. tostring(ext))
+		os.exit(1)
+	else
+		ext = ext:reverse()
+	end
 	local algoExtensions = {
 		['.gz'] = 'gzip',
 		['.xz'] = 'xz',
@@ -36,15 +59,33 @@ local function getCompAlgo(file)
 	return algoExtensions[ext]
 end
 
+---Archives
+local archives = {}
+
 ---Main
-if #arg < 1 then
-	print('help')
+for _, a in ipairs(arg) do
+	if flags[a] then
+		flags[a]()
+	else
+		archives[#archives+1] = a
+	end
+end
+
+if #arg < 1 or #archives == 0 then
+	print(HELP)
+	os.exit(1)
 else
-	print("[\027[0;34mDecompressing\027[0m]")
-	for _, a in ipairs(arg) do
-		local algo = getCompAlgo(a)
-		print("  \027[0;36m*\027[0m '".. a .."' -> \027[0;33m" .. algo .. "\027[0m")
-		COMP_ALGORITHMS[algo](a)
+	for _, ar in ipairs(archives) do
+		local algo = getCompAlgo(ar)
+		local fn = COMP_ALGORITHMS[algo]
+		if not fn then
+			print('Unrecognized file format: ' .. algo)
+			os.exit(1)
+		else
+			print("[\027[0;34mDecompressing\027[0m]")
+			print("  \027[0;36m*\027[0m '".. ar .."' -> \027[0;33m" .. tostring(algo) .. "\027[0m")
+			fn(ar)
+		end
 	end
 end
 
