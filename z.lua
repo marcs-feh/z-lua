@@ -27,7 +27,7 @@ local function fileExists(path)
 	return false
 end
 
---- Utility function to expand table to string
+---Utility function to expand table to string
 local function expandKeys(tbl)
 	local s = ''
 	for k, _ in pairs(tbl) do
@@ -233,6 +233,10 @@ end
 log('Current settings')
 for k, v in pairs(settings) do
 	log(' ' .. k .. ': ' .. tostring(v))
+end
+
+for _, t in ipairs(targets) do
+	print(t, getCompAlgo(t))
 end
 
 if settings.use_module then
