@@ -235,10 +235,6 @@ for k, v in pairs(settings) do
 	log(' ' .. k .. ': ' .. tostring(v))
 end
 
-for _, t in ipairs(targets) do
-	print(t, getCompAlgo(t))
-end
-
 if settings.use_module then
 	for _, ar in ipairs(archives) do
 		print(ar)

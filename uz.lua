@@ -14,8 +14,12 @@ local COMP_ALGORITHMS = {
 		os.execute(cmd)
 	end,
 	['zstd'] = function(ar)
+		local cmd = "zstd -d '" .. ar .. "' --stdout | tar xf -"
+		os.execute(cmd)
 	end,
 	['lz4'] = function(ar)
+		local cmd = "lz4 -d '" .. ar .. "' --stdout | tar xf -"
+		os.execute(cmd)
 	end,
 }
 
