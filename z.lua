@@ -129,6 +129,12 @@ local COMP_ALGORITHMS = {
 		compress(fname, cmd)
 		log('Compressing with: ' .. cmd)
 	end,
+	['7z'] = function(out, files)
+		local fname = out ..".7z"
+		local cmd = '7z a '.. "'" .. fname .. "' ".. expandKeys(files)
+		compress(fname, cmd)
+		log('Compressing with: ' .. cmd)
+	end
 }
 
 --- Help message

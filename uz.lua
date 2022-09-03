@@ -21,6 +21,10 @@ local COMP_ALGORITHMS = {
 		local cmd = "lz4 -c -d '" .. ar .. "' | tar xf -"
 		os.execute(cmd)
 	end,
+	['7z'] = function(ar)
+		local cmd = "7z x '" .. ar .. "'"
+		os.execute(cmd)
+	end
 }
 
 ---Help message
@@ -55,6 +59,7 @@ local function getCompAlgo(file)
 		['.bz'] = 'bzip',
 		['.zst'] = 'zstd',
 		['.lz4'] = 'lz4',
+		['.7z'] = '7z',
 	}
 	return algoExtensions[ext]
 end
