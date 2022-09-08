@@ -17,6 +17,17 @@ local function log(msg)
 	end
 end
 
+---Get number of keys in table.
+local function keyCount(tbl)
+	local n = 0
+	for k, _ in pairs(tbl) do
+		if type(k) ~= 'number' then
+			n = n + 1
+		end
+	end
+	return n
+end
+
 ---Check if file is readble(exists)
 local function fileExists(path)
 	local f = io.open(path, 'r')
@@ -244,7 +255,11 @@ end
 if settings.use_module then
 	for _, ar in ipairs(archives) do
 		print(ar)
-		COMP_ALGORITHMS[ar.comp_algo](ar.name, ar.entries)
+		if keyCount(ar.entries) == 0 then
+			print('Archive ' .. ar.name .. ' contains no entries, skipping...')
+		else
+			COMP_ALGORITHMS[ar.comp_algo](ar.name, ar.entries)
+		end
 	end
 elseif #targets > 0 then
 	local ar = Archive{name = settings.override_name or targets[1], comp_algo = settings.algo}
@@ -252,7 +267,11 @@ elseif #targets > 0 then
 		ar:addEntry(v)
 	end
 	print(ar)
-	COMP_ALGORITHMS[ar.comp_algo](ar.name, ar.entries)
+	if keyCount(ar.entries) == 0 then
+		print('Archive ' .. ar.name .. ' contains no entries, skipping...')
+	else
+		COMP_ALGORITHMS[ar.comp_algo](ar.name, ar.entries)
+	end
 else
 	--print help and exit
 	print(HELP)
