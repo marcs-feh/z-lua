@@ -1,4 +1,4 @@
-#!/usr/bin/env lua
+---SHEBANG---
 
 local COMP_ALGORITHMS = {
 	['xz'] = function(ar)

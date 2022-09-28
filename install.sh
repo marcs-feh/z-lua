@@ -1,19 +1,22 @@
 #!/bin/sh
 
-INSTALL_DIR="$HOME/.local/bin"
+install_dir="$HOME/.local/bin"
+lua_shebang="#!/usr/bin/env luajit"
 
 Install (){
-	mkdir -p $INSTALL_DIR
-	cp z.lua "$INSTALL_DIR/z"
-	cp uz.lua "$INSTALL_DIR/uz"
-	chmod 0755 "$INSTALL_DIR/z"
-	chmod 0755 "$INSTALL_DIR/uz"
+	mkdir -p $install_dir
+	cp z.lua "$install_dir/z"
+	cp uz.lua "$install_dir/uz"
+	chmod 0755 "$install_dir/z"
+	chmod 0755 "$install_dir/uz"
+	sed -e "s,---SHEBANG---,$lua_shebang," "$install_dir/z" -i
+	sed -e "s,---SHEBANG---,$lua_shebang," "$install_dir/uz" -i
 	exit
 }
 
 Uninstall (){
-	rm -f "$INSTALL_DIR/z"
-	rm -f "$INSTALL_DIR/uz"
+	rm -f "$install_dir/z"
+	rm -f "$install_dir/uz"
 	exit
 }
 
