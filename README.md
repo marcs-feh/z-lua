@@ -6,7 +6,7 @@ archiving and file compression software such as `tar`, `gzip`, `xz`, `bzip`,
 
 ## Defining archives using Lua
 
-You can use lua code to define a list of archives like so
+You can use lua code to define a list of archives like so:
 
 ```lua
 --- example.lua
@@ -27,6 +27,8 @@ Archives = {
 	},
 }
 ```
+To generate the archive above you would run `z -l example.lua` (the `.lua` is optional).
+
 The valid `comp_algo` are:
 - gzip
 - xz
