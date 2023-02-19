@@ -2,7 +2,7 @@
 
 ---Global settings
 local settings = {
-	algo  = 'zstd',
+	algo  = '7z',
 	override_name = nil, -- Set this to a string and it becomes the forced name
 	force = false,
 	use_module = false,
