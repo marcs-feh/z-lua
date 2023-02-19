@@ -21,6 +21,10 @@ local COMP_ALGORITHMS = {
 		local cmd = "lz4 -c -d '" .. ar .. "' | tar xf -"
 		os.execute(cmd)
 	end,
+	['zip'] = function (ar)
+		local cmd = "unzip '" .. ar .. "'"
+		os.execute(cmd)
+	end,
 	['7z'] = function(ar)
 		local cmd = "7z x '" .. ar .. "'"
 		os.execute(cmd)
@@ -54,12 +58,13 @@ local function getCompAlgo(file)
 		ext = ext:reverse()
 	end
 	local algoExtensions = {
-		['.gz'] = 'gzip',
-		['.xz'] = 'xz',
-		['.bz'] = 'bzip',
+		['.gz']  = 'gzip',
+		['.xz']  = 'xz',
+		['.bz']  = 'bzip',
 		['.zst'] = 'zstd',
 		['.lz4'] = 'lz4',
-		['.7z'] = '7z',
+		['.zip'] = 'zip',
+		['.7z']  = '7z',
 	}
 	return algoExtensions[ext]
 end

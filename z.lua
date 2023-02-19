@@ -17,7 +17,7 @@ local function log(msg)
 end
 
 ---Get number of keys in table.
-local function keyCount(tbl)
+local function count_keys(tbl)
 	local n = 0
 	for k, _ in pairs(tbl) do
 		if type(k) ~= 'number' then
@@ -28,7 +28,7 @@ local function keyCount(tbl)
 end
 
 ---Check if file is readble(exists)
-local function fileExists(path)
+local function file_exists(path)
 	local f = io.open(path, 'r')
 	if f then
 		f:close()
@@ -38,7 +38,7 @@ local function fileExists(path)
 end
 
 ---Utility function to expand table to string
-local function expandKeys(tbl)
+local function expand_keys(tbl)
 	local s = ''
 	for k, _ in pairs(tbl) do
 		if type(k) == 'string' then
@@ -95,7 +95,7 @@ local TAR_CMD = 'tar'
 
 ---Ask OS to execute cmd, checks if fname exists
 local function compress(fname, cmd)
-	if fileExists(fname) then
+	if file_exists(fname) then
 		if settings.force then
 			os.remove(fname)
 			os.execute(cmd)
@@ -111,37 +111,43 @@ end
 local COMP_ALGORITHMS = {
 	['xz'] = function(out, files)
 		local fname = out ..".tar.xz"
-		local cmd = TAR_CMD .. " cJf '" .. fname .. "' " .. expandKeys(files)
+		local cmd = TAR_CMD .. " cJf '" .. fname .. "' " .. expand_keys(files)
 		compress(fname, cmd)
 		log('Compressing with: ' .. cmd)
 	end,
 	['gzip'] = function(out, files)
 		local fname = out ..".tar.gz"
-		local cmd = TAR_CMD .. " czf '" .. fname .. "' " .. expandKeys(files)
+		local cmd = TAR_CMD .. " czf '" .. fname .. "' " .. expand_keys(files)
 		compress(fname, cmd)
 		log('Compressing with: ' .. cmd)
 	end,
 	['bzip'] = function(out, files)
 		local fname = out ..".tar.bz"
-		local cmd = TAR_CMD .. " cjf '" .. fname .. "' " .. expandKeys(files)
+		local cmd = TAR_CMD .. " cjf '" .. fname .. "' " .. expand_keys(files)
 		compress(fname, cmd)
 		log('Compressing with: ' .. cmd)
 	end,
 	['zstd'] = function(out, files)
 		local fname = out ..".tar.zst"
-		local cmd = TAR_CMD .. ' cf - '.. expandKeys(files) .. ' | zstd -T0 -19 -o ' .. "'".. fname .."'"
+		local cmd = TAR_CMD .. ' cf - '.. expand_keys(files) .. ' | zstd -T0 -19 -o ' .. "'".. fname .."'"
+		compress(fname, cmd)
+		log('Compressing with: ' .. cmd)
+	end,
+	['zip'] = function(out, files)
+		local fname = out ..".zip"
+		local cmd = 'zip '.. "'" .. fname .. "' -r ".. expand_keys(files)
 		compress(fname, cmd)
 		log('Compressing with: ' .. cmd)
 	end,
 	['lz4'] = function(out, files)
 		local fname = out ..".tar.lz4"
-		local cmd = TAR_CMD .. ' cf - '.. expandKeys(files) .. ' | lz4 - ' .. "'".. fname .."'"
+		local cmd = TAR_CMD .. ' cf - '.. expand_keys(files) .. ' | lz4 - ' .. "'".. fname .."'"
 		compress(fname, cmd)
 		log('Compressing with: ' .. cmd)
 	end,
 	['7z'] = function(out, files)
 		local fname = out ..".7z"
-		local cmd = '7z a '.. "'" .. fname .. "' ".. expandKeys(files)
+		local cmd = '7z a '.. "'" .. fname .. "' ".. expand_keys(files)
 		compress(fname, cmd)
 		log('Compressing with: ' .. cmd)
 	end
@@ -171,6 +177,10 @@ local flags = {}
 flags = {
 	['-c'] = function(alg)
 		if not COMP_ALGORITHMS[alg] then
+			print('Valid compression algos are: ')
+			for k, _ in pairs(COMP_ALGORITHMS) do
+				print('\t* ' .. k)
+			end
 			error('Invalid compression algorithm: ' .. tostring(alg))
 		end
 
@@ -254,7 +264,7 @@ end
 if settings.use_module then
 	for _, ar in ipairs(archives) do
 		print(ar)
-		if keyCount(ar.entries) == 0 then
+		if count_keys(ar.entries) == 0 then
 			print('Archive ' .. ar.name .. ' contains no entries, skipping...')
 		else
 			COMP_ALGORITHMS[ar.comp_algo](ar.name, ar.entries)
@@ -266,7 +276,7 @@ elseif #targets > 0 then
 		ar:addEntry(v)
 	end
 	print(ar)
-	if keyCount(ar.entries) == 0 then
+	if count_keys(ar.entries) == 0 then
 		print('Archive ' .. ar.name .. ' contains no entries, skipping...')
 	else
 		COMP_ALGORITHMS[ar.comp_algo](ar.name, ar.entries)
