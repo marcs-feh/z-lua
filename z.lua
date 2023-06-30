@@ -1,12 +1,14 @@
 ---SHEBANG---
 
 ---Global settings
+
 local settings = {
-	algo  = '7z',
-	override_name = nil, -- Set this to a string and it becomes the forced name
+	comp_algo  = '7z',
+	outfile = nil, -- Set this to a string and it becomes the forced name
 	force = false,
 	use_module = false,
-	verbose = false
+	verbose = false,
+	tar_cmd = 'tar', -- Command to use for tape archiver
 }
 
 ---Log function for verbose mode
@@ -53,9 +55,9 @@ local ar_mt = {
 	__tostring = function (self)
 		local s = '[\27[0;34m'.. self.name .. '\27[0m : \27[0;33m' .. self.comp_algo ..'\27[0m]\n'
 		local old_s = s
-			for f, _ in pairs(self.entries) do
-				s = s .. "  \27[0;36m*\27[0m '" .. f .. "'\n"
-			end
+		for f, _ in pairs(self.entries) do
+			s = s .. "  \27[0;36m*\27[0m '" .. f .. "'\n"
+		end
 		if s == old_s then
 			s = s .. '\t(empty)\n'
 		end
@@ -69,7 +71,7 @@ local ar_mt = {
 ---@return table
 local function Archive(t)
 	local ar = {
-		comp_algo = t.comp_algo or 'zstd',
+		comp_algo = t.comp_algo or settings.comp_algo,
 		entries   = {},
 		name      = t.name or 'untitled-archive',
 		addEntry  = function (self, file)
@@ -90,9 +92,6 @@ local function Archive(t)
 	return ar
 end
 
----Command to use for tape archiver
-local TAR_CMD = 'tar'
-
 ---Ask OS to execute cmd, checks if fname exists
 local function compress(fname, cmd)
 	if file_exists(fname) then
@@ -111,25 +110,25 @@ end
 local COMP_ALGORITHMS = {
 	['xz'] = function(out, files)
 		local fname = out ..".tar.xz"
-		local cmd = TAR_CMD .. " cJf '" .. fname .. "' " .. expand_keys(files)
+		local cmd = settings.tar_cmd .. " cJf '" .. fname .. "' " .. expand_keys(files)
 		compress(fname, cmd)
 		log('Compressing with: ' .. cmd)
 	end,
 	['gzip'] = function(out, files)
 		local fname = out ..".tar.gz"
-		local cmd = TAR_CMD .. " czf '" .. fname .. "' " .. expand_keys(files)
+		local cmd = settings.tar_cmd .. " czf '" .. fname .. "' " .. expand_keys(files)
 		compress(fname, cmd)
 		log('Compressing with: ' .. cmd)
 	end,
 	['bzip'] = function(out, files)
 		local fname = out ..".tar.bz"
-		local cmd = TAR_CMD .. " cjf '" .. fname .. "' " .. expand_keys(files)
+		local cmd = settings.tar_cmd .. " cjf '" .. fname .. "' " .. expand_keys(files)
 		compress(fname, cmd)
 		log('Compressing with: ' .. cmd)
 	end,
 	['zstd'] = function(out, files)
 		local fname = out ..".tar.zst"
-		local cmd = TAR_CMD .. ' cf - '.. expand_keys(files) .. ' | zstd -T0 -19 -o ' .. "'".. fname .."'"
+		local cmd = settings.tar_cmd .. ' cf - '.. expand_keys(files) .. ' | zstd -T0 -19 -o ' .. "'".. fname .."'"
 		compress(fname, cmd)
 		log('Compressing with: ' .. cmd)
 	end,
@@ -141,7 +140,7 @@ local COMP_ALGORITHMS = {
 	end,
 	['lz4'] = function(out, files)
 		local fname = out ..".tar.lz4"
-		local cmd = TAR_CMD .. ' cf - '.. expand_keys(files) .. ' | lz4 - ' .. "'".. fname .."'"
+		local cmd = settings.tar_cmd .. ' cf - '.. expand_keys(files) .. ' | lz4 - ' .. "'".. fname .."'"
 		compress(fname, cmd)
 		log('Compressing with: ' .. cmd)
 	end,
@@ -154,25 +153,53 @@ local COMP_ALGORITHMS = {
 }
 
 --- Help message
-local HELP = ('usage: z [-l MOD] [-c ALGO] [-o NAME] [-fh] TARGETS\n'
-            ..'\t-f       Override existing archives\n'
-            ..'\t-v       Be verbose\n'
-            ..'\t-c ALGO  Use ALGO as compression algorithm\n'
-            ..'\t-o NAME  Use NAME as archive output\n'
-            ..'\t-l MOD   Load lua module MOD and use its Archives field to run the\n'
-            ..'\t         program, this will cause the program to ignore any targets\n'
-            ..'\t         provided through the command line, supresses: -o,-c\n'
-            ..'\t-h       Display this help message\n'
-            ..'\t--       Stop parsing options after -\n')
+local HELP = ('usage: z [-l:MOD] [-c:ALGO] [-o:NAME] [OPTS] TARGETS\n'
+..'    -c:ALGO  Use ALGO as compression algorithm\n'
+..'    -o:NAME  Use NAME as archive output\n'
+..'    -l:MOD   Load lua module MOD and use its Archives field to run the\n'
+..'             program, this will cause the program to ignore any targets\n'
+..'             provided through the command line, also supresses: -o,-c\n'
+..'    -h       Display this help message\n'
+..'    -f       Override existing archives\n'
+..'    -v       Be verbose\n'
+..'    --       Stop parsing options after -\n')
 
 ---Archive list
 local archives = {}
 
----Non-flag CLI arguments
-local targets = {}
+local cli_parse = function (arg_list)
+	local flags = {}
+	local regular = {}
 
----Flags and their actions
+	local is_flag = function(s)
+		if #s < 2 then return false end
+		return s:sub(1,1) == '-'
+	end
+
+	local make_flag = function(s)
+		local p = s:find(':')
+		local flag = nil
+		if not p then
+			flag = {s:sub(2, p), true}
+		else
+			flag = {s:sub(2, p-1), s:sub(p+1, #s)}
+		end
+		return flag
+	end
+
+	for _, arg in ipairs(arg_list) do
+		if is_flag(arg) then
+			flags[#flags+1] = make_flag(arg)
+		else
+			regular[#regular+1] = arg
+		end
+	end
+
+	return flags, regular
+end
+
 --Each action returns how many CLI arguments they consumed
+--[[
 local flags = {}
 flags = {
 	['-c'] = function(alg)
@@ -242,48 +269,72 @@ flags = {
 		return 0
 	end
 }
+--]]
 
 --- Main
-local i = 1
-local a = nil
-while i <= #arg do
-	a = arg[i]
-	if flags[a] then
-		i = i + flags[a](arg[i+1])
-	else
-		targets[#targets+1] = a
+do
+	local cli_args = _G.arg
+	if #cli_args < 1 then
+		print(HELP)
+		os.exit(1)
 	end
-	i = i + 1
-end
+	local flags, targets = cli_parse(cli_args)
 
-log('Current settings')
-for k, v in pairs(settings) do
-	log(' ' .. k .. ': ' .. tostring(v))
-end
-
-if settings.use_module then
-	for _, ar in ipairs(archives) do
-		print(ar)
-		if count_keys(ar.entries) == 0 then
-			print('Archive ' .. ar.name .. ' contains no entries, skipping...')
-		else
-			COMP_ALGORITHMS[ar.comp_algo](ar.name, ar.entries)
+	for _, flag in pairs(flags) do
+		local key = flag[1]
+		local val = flag[2]
+		if key == 'h' then
+			print(HELP)
+			os.exit(1)
+		elseif key == 'c' then
+			settings.comp_algo = val
+		elseif key == 'o' then
+			settings.outfile = val
+		elseif key == 'v' then
+			settings.verbose = true
+		elseif key == 'f' then
+			settings.force = true
 		end
 	end
-elseif #targets > 0 then
-	local ar = Archive{name = settings.override_name or targets[1], comp_algo = settings.algo}
-	for _, v in ipairs(targets) do
-		ar:addEntry(v)
-	end
-	print(ar)
-	if count_keys(ar.entries) == 0 then
-		print('Archive ' .. ar.name .. ' contains no entries, skipping...')
-	else
-		COMP_ALGORITHMS[ar.comp_algo](ar.name, ar.entries)
-	end
-else
-	--print help and exit
-	print(HELP)
-	os.exit(1)
-end
 
+	for k, v in pairs(settings) do
+		print(('%s: %s'):format(k, v))
+	end
+
+	local out = Archive{
+		name = settings.outfile or targets[1],
+		comp_algo = settings.comp_algo,
+	}
+
+	for _, t in ipairs(targets) do
+		out:addEntry(t)
+	end
+
+	COMP_ALGORITHMS[out.comp_algo](out.name, out.entries)
+
+	-- if settings.use_module then
+	-- 	for _, ar in ipairs(archives) do
+	-- 		print(ar)
+	-- 		if count_keys(ar.entries) == 0 then
+	-- 			print('Archive ' .. ar.name .. ' contains no entries, skipping...')
+	-- 		else
+	-- 			COMP_ALGORITHMS[ar.comp_algo](ar.name, ar.entries)
+	-- 		end
+	-- 	end
+	-- elseif #targets > 0 then
+	-- 	local ar = Archive{name = settings.override_name or targets[1], comp_algo = settings.algo}
+	-- 	for _, v in ipairs(targets) do
+	-- 		ar:addEntry(v)
+	-- 	end
+	-- 	print(ar)
+	-- 	if count_keys(ar.entries) == 0 then
+	-- 		print('Archive ' .. ar.name .. ' contains no entries, skipping...')
+	-- 	else
+	-- 		COMP_ALGORITHMS[ar.comp_algo](ar.name, ar.entries)
+	-- 	end
+	-- else
+	-- 	--print help and exit
+	-- 	print(HELP)
+	-- 	os.exit(1)
+	-- end
+end
