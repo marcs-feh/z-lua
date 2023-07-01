@@ -6,7 +6,6 @@ local settings = {
 	comp_algo  = '7z',
 	outfile = nil, -- Set this to a string and it becomes the forced name
 	force = false,
-	use_module = false,
 	verbose = false,
 	tar_cmd = 'tar', -- Command to use for tape archiver
 }
@@ -153,20 +152,15 @@ local COMP_ALGORITHMS = {
 }
 
 --- Help message
-local HELP = ('usage: z [-l:MOD] [-c:ALGO] [-o:NAME] [OPTS] TARGETS\n'
+local HELP = ('usage: z [-c:ALGO] [-o:NAME] [OPTS] TARGETS\n'
 ..'    -c:ALGO  Use ALGO as compression algorithm\n'
 ..'    -o:NAME  Use NAME as archive output\n'
-..'    -l:MOD   Load lua module MOD and use its Archives field to run the\n'
-..'             program, this will cause the program to ignore any targets\n'
-..'             provided through the command line, also supresses: -o,-c\n'
 ..'    -h       Display this help message\n'
 ..'    -f       Override existing archives\n'
 ..'    -v       Be verbose\n'
 ..'    --       Stop parsing options after -\n')
 
 ---Archive list
-local archives = {}
-
 local cli_parse = function (arg_list)
 	local flags = {}
 	local regular = {}
@@ -197,79 +191,6 @@ local cli_parse = function (arg_list)
 
 	return flags, regular
 end
-
---Each action returns how many CLI arguments they consumed
---[[
-local flags = {}
-flags = {
-	['-c'] = function(alg)
-		if not COMP_ALGORITHMS[alg] then
-			print('Valid compression algos are: ')
-			for k, _ in pairs(COMP_ALGORITHMS) do
-				print('\t* ' .. k)
-			end
-			error('Invalid compression algorithm: ' .. tostring(alg))
-		end
-
-		settings.algo = alg
-		return 1
-	end,
-
-	['-f'] = function()
-		settings.force = true
-		return 0
-	end,
-
-	['-v'] = function()
-		settings.verbose = true
-		return 0
-	end,
-
-	['-o'] = function(name)
-		if not name or flags[name] then
-			error('No provided output for -o')
-		end
-		settings.bundle = true
-		settings.override_name = tostring(name)
-		return 1
-	end,
-
-	['-h'] = function()
-		print(HELP)
-		os.exit(0)
-		return 0
-	end,
-
-	['-l'] = function(mod)
-		if not mod then
-			error('No module provided')
-		end
-		mod = mod:gsub('%.lua$', '') -- remove .lua extension for convenience
-		log('Loading module: ' .. mod)
-		local s = require(mod)
-		if not s or type(Archives) ~= 'table' then
-			error('No archive schema found in Lua module: ' .. mod)
-		end
-
-		for _, a in ipairs(Archives) do
-			--for k,v in pairs(a.entries) do print('[a] ',k,v) end
-			archives[#archives+1] = Archive{name = a.name, comp_algo = a.comp_algo}
-			for _, e in ipairs(a.entries) do
-				archives[#archives]:addEntry(e)
-			end
-		end
-
-		settings.use_module = true
-
-		return 1
-	end,
-
-	['--'] = function()
-		flags = {}
-		return 0
-	end
-}
---]]
 
 --- Main
 do
@@ -311,30 +232,4 @@ do
 	end
 
 	COMP_ALGORITHMS[out.comp_algo](out.name, out.entries)
-
-	-- if settings.use_module then
-	-- 	for _, ar in ipairs(archives) do
-	-- 		print(ar)
-	-- 		if count_keys(ar.entries) == 0 then
-	-- 			print('Archive ' .. ar.name .. ' contains no entries, skipping...')
-	-- 		else
-	-- 			COMP_ALGORITHMS[ar.comp_algo](ar.name, ar.entries)
-	-- 		end
-	-- 	end
-	-- elseif #targets > 0 then
-	-- 	local ar = Archive{name = settings.override_name or targets[1], comp_algo = settings.algo}
-	-- 	for _, v in ipairs(targets) do
-	-- 		ar:addEntry(v)
-	-- 	end
-	-- 	print(ar)
-	-- 	if count_keys(ar.entries) == 0 then
-	-- 		print('Archive ' .. ar.name .. ' contains no entries, skipping...')
-	-- 	else
-	-- 		COMP_ALGORITHMS[ar.comp_algo](ar.name, ar.entries)
-	-- 	end
-	-- else
-	-- 	--print help and exit
-	-- 	print(HELP)
-	-- 	os.exit(1)
-	-- end
 end
