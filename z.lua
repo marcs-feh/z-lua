@@ -1,7 +1,6 @@
 ---SHEBANG---
 
 ---Global settings
-
 local settings = {
 	comp_algo  = '7z',
 	outfile = nil, -- Set this to a string and it becomes the forced name
@@ -15,17 +14,6 @@ local function log(msg)
 	if settings.verbose then
 		io.stderr:write(tostring(msg) .. '\n')
 	end
-end
-
----Get number of keys in table.
-local function count_keys(tbl)
-	local n = 0
-	for k, _ in pairs(tbl) do
-		if type(k) ~= 'number' then
-			n = n + 1
-		end
-	end
-	return n
 end
 
 ---Check if file is readble(exists)
@@ -105,7 +93,29 @@ local function compress(fname, cmd)
 	end
 end
 
----Compression algos and their functions.
+---Get compression algorithm from file extension
+local function getCompAlgoFromExt(file)
+	local ext = file:reverse():match('^%w+%.')
+	if not ext then
+		print('Unrecognized file format: ' .. tostring(ext))
+		os.exit(1)
+	else
+		ext = ext:reverse()
+	end
+	local algoExtensions = {
+		['.gz']  = 'gzip',
+		['.xz']  = 'xz',
+		['.bz']  = 'bzip',
+		['.zst'] = 'zstd',
+		['.lz4'] = 'lz4',
+		['.zip'] = 'zip',
+		['.7z']  = '7z',
+	}
+	return algoExtensions[ext]
+end
+
+
+--- Compression algos and their functions.
 local COMP_ALGORITHMS = {
 	['xz'] = function(out, files)
 		local fname = out ..".tar.xz"
@@ -151,8 +161,42 @@ local COMP_ALGORITHMS = {
 	end
 }
 
+local DECOMP_ALGORITHMS = {
+	['xz'] = function(ar)
+		local cmd = "tar xJf '".. ar .."'"
+		os.execute(cmd)
+	end,
+	['gzip'] = function(ar)
+		local cmd = "tar xzf '".. ar .."'"
+		os.execute(cmd)
+	end,
+	['bzip'] = function(ar)
+		local cmd = "tar xjf '".. ar .."'"
+		os.execute(cmd)
+	end,
+	['zstd'] = function(ar)
+		local cmd = "zstd -d '" .. ar .. "' --stdout | tar xf -"
+		os.execute(cmd)
+	end,
+	['lz4'] = function(ar)
+		local cmd = "lz4 -c -d '" .. ar .. "' | tar xf -"
+		os.execute(cmd)
+	end,
+	['zip'] = function (ar)
+		local cmd = "unzip '" .. ar .. "'"
+		os.execute(cmd)
+	end,
+	['7z'] = function(ar)
+		local cmd = "7z x '" .. ar .. "'"
+		os.execute(cmd)
+	end
+}
+
+
+
+
 --- Help message
-local HELP = ('usage: z [-c:ALGO] [-o:NAME] [OPTS] TARGETS\n'
+local HELP = ('usage: z [c|d] [-c:ALGO] [-o:NAME] [OPTS] TARGETS\n'
 ..'    -c:ALGO  Use ALGO as compression algorithm\n'
 ..'    -o:NAME  Use NAME as archive output\n'
 ..'    -h       Display this help message\n'
@@ -193,12 +237,18 @@ local cli_parse = function (arg_list)
 end
 
 --- Main
-do
-	local cli_args = _G.arg
-	if #cli_args < 1 then
-		print(HELP)
-		os.exit(1)
-	end
+local cli_args = _G.arg
+if #cli_args < 2 then
+	print(HELP)
+	os.exit(1)
+end
+
+local mode = cli_args[1]
+print('MODE:', mode)
+
+table.remove(cli_args, 1)
+
+if mode == 'c' then
 	local flags, targets = cli_parse(cli_args)
 
 	for _, flag in pairs(flags) do
@@ -232,4 +282,30 @@ do
 	end
 
 	COMP_ALGORITHMS[out.comp_algo](out.name, out.entries)
+
+elseif mode == 'd' then
+	local archives = {}
+	for _, a in ipairs(cli_args) do
+		archives[#archives+1] = a
+	end
+
+	for _, ar in ipairs(archives) do
+		local algo = getCompAlgoFromExt(ar)
+		local fn = DECOMP_ALGORITHMS[algo]
+		if not fn then
+			print('Unrecognized file format: ' .. algo)
+			os.exit(1)
+		else
+			print("[\027[0;34mDecompressing\027[0m]")
+			print("  \027[0;36m*\027[0m '".. ar .."' -> \027[0;33m" .. tostring(algo) .. "\027[0m")
+			fn(ar)
+		end
+	end
+
+else
+	print(HELP)
+	os.exit(1)
 end
+
+
+

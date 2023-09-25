@@ -49,7 +49,7 @@ flags = {
 }
 
 ---Get compression algorithm from file extension
-local function getCompAlgo(file)
+local function getCompAlgoFromExt(file)
 	local ext = file:reverse():match('^%w+%.')
 	if not ext then
 		print('Unrecognized file format: ' .. tostring(ext))
@@ -86,7 +86,7 @@ if #arg < 1 or #archives == 0 then
 	os.exit(1)
 else
 	for _, ar in ipairs(archives) do
-		local algo = getCompAlgo(ar)
+		local algo = getCompAlgoFromExt(ar)
 		local fn = COMP_ALGORITHMS[algo]
 		if not fn then
 			print('Unrecognized file format: ' .. algo)
