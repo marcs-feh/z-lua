@@ -8,17 +8,13 @@ Run(){ echo "$@"; "$@"; }
 Install (){
 	Run mkdir -p "$install_dir"
 	Run cp z.lua "$install_dir/z"
-	Run cp uz.lua "$install_dir/uz"
 	Run chmod 0755 "$install_dir/z"
-	Run chmod 0755 "$install_dir/uz"
 	Run sed -e "s,---SHEBANG---,$lua_shebang," "$install_dir/z" -i
-	Run sed -e "s,---SHEBANG---,$lua_shebang," "$install_dir/uz" -i
 	exit
 }
 
 Uninstall (){
 	Run rm -f "$install_dir/z"
-	Run rm -f "$install_dir/uz"
 	exit
 }
 

@@ -301,7 +301,6 @@ elseif mode == 'd' then
 			fn(ar)
 		end
 	end
-
 else
 	print(HELP)
 	os.exit(1)
