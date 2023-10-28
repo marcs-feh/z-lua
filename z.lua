@@ -244,7 +244,6 @@ if #cli_args < 2 then
 end
 
 local mode = cli_args[1]
-print('MODE:', mode)
 
 table.remove(cli_args, 1)
 
